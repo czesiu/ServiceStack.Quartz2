@@ -41,7 +41,7 @@ var isHotFixBranch = BuildSystem.AppVeyor.Environment.Repository.Branch.StartsWi
 var isTagged = BuildSystem.AppVeyor.Environment.Repository.Tag.IsTag && !BuildSystem.AppVeyor.Environment.Repository.Tag.Name.IsNullOrEmpty();
 var publishingError = false;
 
-var shouldPublishNuGet = (!isLocalBuild && !isPullRequest && (isMasterBranch || isReleaseBranch || isHotFixBranch) && isTagged);
+var shouldPublishNuGet = !isLocalBuild && !isPullRequest && isMasterBranch;
 var shouldPublishGitHub = shouldPublishNuGet;
 
 var gitVersionResults   = GitVersion(new GitVersionSettings { UpdateAssemblyInfo = false });
