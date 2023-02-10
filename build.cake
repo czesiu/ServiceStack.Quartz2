@@ -159,10 +159,7 @@ Task("Create-Release-Notes")
 });
 
 Task("Export-Release-Notes")
-    .WithCriteria(() => !isLocalBuild)
-    .WithCriteria(() => BuildSystem.IsRunningOnAppVeyor && !isPullRequest)
-    .WithCriteria(() => isMasterBranch || isReleaseBranch || isHotFixBranch)
-    .WithCriteria(() => isTagged)
+    .WithCriteria(() => shouldPublishGitHub)
 .Does(() => {
     Information("Exporting release notes for {0}", solutionFile);
     gitHubToken.ThrowIfNull(nameof(gitHubToken));
