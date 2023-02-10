@@ -9,8 +9,7 @@
 // ARGUMENTS
 ///////////////////////////////////////////////////////////////////////////////
 var envBuildNumber = EnvironmentVariable<int>("APPVEYOR_BUILD_NUMBER", 0);
-var gitHubUserName = EnvironmentVariable("GITHUB_USERNAME");
-var gitHubPassword = EnvironmentVariable("GITHUB_PASSWORD");
+var gitHubToken = EnvironmentVariable("GITHUB_TOKEN");
 var nugetSourceUrl = EnvironmentVariable("NUGET_SOURCE");
 var nugetApiKey = EnvironmentVariable("NUGET_API_KEY");
 
@@ -31,8 +30,8 @@ var releaseNotesPath = rootPath.CombineWithFilePath("CHANGELOG.md");
 
 // project specific
 var solutionFile        = srcDir + File("ServiceStack.Quartz.sln");
-var gitHubRepositoryOwner = "wwwlicious";
-var gitHubRepositoryName = "ServiceStack.Quartz";
+var gitHubRepositoryOwner = "czesiu";
+var gitHubRepositoryName = "ServiceStack.Quartz2";
 
 var isLocalBuild = BuildSystem.IsLocalBuild;
 var isPullRequest = BuildSystem.AppVeyor.Environment.PullRequest.IsPullRequest;
@@ -46,9 +45,10 @@ var shouldPublishNuGet = (!isLocalBuild && !isPullRequest && (isMasterBranch || 
 var shouldPublishGitHub = shouldPublishNuGet;
 
 var gitVersionResults   = GitVersion(new GitVersionSettings { UpdateAssemblyInfo = false });
-var semVersion          = $"{gitVersionResults.MajorMinorPatch}.{buildNumber}";
+var assemblySemVersion  = $"{gitVersionResults.MajorMinorPatch}.{gitVersionResults.CommitsSinceVersionSource}";
 
-Information("SemverVersion -> {0}", semVersion);
+Information("AssemblySemVersion -> {0}", assemblySemVersion);
+Information("NuGetVersion -> {0}", gitVersionResults.NuGetVersion);
 
 var projects = ParseSolution(solutionFile).GetProjects().Select(x => ParseProject(x.Path, configuration));
 
@@ -96,8 +96,8 @@ Task("Build")
             .WithProperty("resultsAsErrors", "3884")
             .WithProperty("CodeContractsRunCodeAnalysis", "true")
             .WithProperty("RunCodeAnalysis", "false")
-            .WithProperty("Version", semVersion)
-            .WithProperty("PackageVersion", gitVersionResults.MajorMinorPatch)
+            .WithProperty("Version", assemblySemVersion)
+            .WithProperty("PackageVersion", gitVersionResults.NuGetVersion)
             .WithProperty("PackageOutputPath", MakeAbsolute(nugetPackageDir).FullPath)
             .SetNodeReuse(false);
 
@@ -136,10 +136,9 @@ Task("AppVeyor")
 
 Task("Create-Release-Notes")
 .Does(() => {
-    Information("Creating release notes for {0}", semVersion);
-    gitHubUserName.ThrowIfNull(nameof(gitHubUserName));
-    gitHubPassword.ThrowIfNull(nameof(gitHubPassword));
-    GitReleaseManagerCreate(gitHubUserName, gitHubPassword, gitHubRepositoryOwner, gitHubRepositoryName, new GitReleaseManagerCreateSettings {
+    Information("Creating release notes for {0}", assemblySemVersion);
+    gitHubToken.ThrowIfNull(nameof(gitHubToken));
+    GitReleaseManagerCreate(gitHubToken, gitHubRepositoryOwner, gitHubRepositoryName, new GitReleaseManagerCreateSettings {
                 Milestone         = gitVersionResults.MajorMinorPatch,
                 Name              = gitVersionResults.MajorMinorPatch,
                 Prerelease        = false,
@@ -154,10 +153,9 @@ Task("Export-Release-Notes")
     .WithCriteria(() => isTagged)
 .Does(() => {
     Information("Exporting release notes for {0}", solutionFile);
-    gitHubUserName.ThrowIfNull(nameof(gitHubUserName));
-    gitHubPassword.ThrowIfNull(nameof(gitHubPassword));
+    gitHubToken.ThrowIfNull(nameof(gitHubToken));
 
-    GitReleaseManagerExport(gitHubUserName, gitHubPassword, gitHubRepositoryOwner, gitHubRepositoryName, releaseNotesPath, 
+    GitReleaseManagerExport(gitHubToken, gitHubRepositoryOwner, gitHubRepositoryName, releaseNotesPath, 
     new GitReleaseManagerExportSettings {
         TagName = gitVersionResults.MajorMinorPatch
     });
@@ -168,17 +166,16 @@ Task("Publish-GitHub-Release")
 .WithCriteria(() => shouldPublishGitHub)
 .Does(() => {
     Information("Publishing github release for {0}", solutionFile);
-    gitHubUserName.ThrowIfNull(nameof(gitHubUserName));
-    gitHubPassword.ThrowIfNull(nameof(gitHubPassword));
+    gitHubToken.ThrowIfNull(nameof(gitHubToken));
 
     // upload packages as assets
     foreach(var package in GetFiles(nugetPackageDir.Path + "/*"))
     {
-        GitReleaseManagerAddAssets(gitHubUserName, gitHubPassword, gitHubRepositoryOwner, gitHubRepositoryName, gitVersionResults.MajorMinorPatch, package.ToString());
+        GitReleaseManagerAddAssets(gitHubToken, gitHubRepositoryOwner, gitHubRepositoryName, gitVersionResults.MajorMinorPatch, package.ToString());
     }
 
     // close the release
-    GitReleaseManagerClose(gitHubUserName, gitHubPassword, gitHubRepositoryOwner, gitHubRepositoryName, gitVersionResults.MajorMinorPatch);
+    GitReleaseManagerClose(gitHubToken, gitHubRepositoryOwner, gitHubRepositoryName, gitVersionResults.MajorMinorPatch);
 });
 
 Task("Publish-Nuget-Packages")
