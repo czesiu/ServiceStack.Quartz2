@@ -41,14 +41,26 @@ var isHotFixBranch = BuildSystem.AppVeyor.Environment.Repository.Branch.StartsWi
 var isTagged = BuildSystem.AppVeyor.Environment.Repository.Tag.IsTag && !BuildSystem.AppVeyor.Environment.Repository.Tag.Name.IsNullOrEmpty();
 var publishingError = false;
 
-var shouldPublishNuGet = (!isLocalBuild && !isPullRequest && (isMasterBranch || isReleaseBranch || isHotFixBranch) && isTagged);
+var shouldPublishNuGet = !isLocalBuild && !isPullRequest && isMasterBranch;
 var shouldPublishGitHub = shouldPublishNuGet;
 
 var gitVersionResults   = GitVersion(new GitVersionSettings { UpdateAssemblyInfo = false });
 var assemblySemVersion  = $"{gitVersionResults.MajorMinorPatch}.{gitVersionResults.CommitsSinceVersionSource}";
 
+if (BuildSystem.AppVeyor.IsRunningOnAppVeyor)
+{
+    Information("Branch -> {0}", BuildSystem.AppVeyor.Environment.Repository.Branch);
+    Information("IsTag -> {0}", BuildSystem.AppVeyor.Environment.Repository.Tag.IsTag);
+    Information("Tag -> {0}", BuildSystem.AppVeyor.Environment.Repository.Tag.Name);
+}
+else
+{
+    Information("Not running on AppVeyor");
+}
+
 Information("AssemblySemVersion -> {0}", assemblySemVersion);
 Information("NuGetVersion -> {0}", gitVersionResults.NuGetVersion);
+Information("ShouldPublishNuGet -> {0}", shouldPublishNuGet);
 
 var projects = ParseSolution(solutionFile).GetProjects().Select(x => ParseProject(x.Path, configuration));
 
