@@ -1,7 +1,7 @@
 #l docs.cake
 #tool "nuget:?package=xunit.runner.console&version=2.4.1"
 #tool "nuget:?package=GitVersion.CommandLine&version=5.0.1"
-#tool "nuget:?package=gitreleasemanager&version=0.8.0"
+#tool "nuget:?package=gitreleasemanager&version=0.13.0"
 #tool "nuget:?package=gitlink&version=2.4.0"
 #addin "nuget:?package=Cake.Incubator&version=5.1.0"
 
